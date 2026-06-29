@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>Calefacción</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #1a1d27;
+      --border:    #2a2d3a;
+      --text:      #e8eaf0;
+      --muted:     #6b7080;
+      --accent:    #f97316;       /* naranja fuego — el calor del sistema */
+      --green:     #22c55e;
+      --red:       #ef4444;
+      --blue:      #3b82f6;
+      --radius:    16px;
+      --font:      'Inter', sans-serif;
+      --mono:      'DM Mono', monospace;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font);
+      min-height: 100dvh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Layout ── */
+    .app {
+      max-width: 420px;
+      margin: 0 auto;
+      padding: 20px 16px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* ── Header ── */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+    }
+
+    .header-title {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+    }
+
+    .header-sub {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 10px;
+      border-radius: 99px;
+      background: rgba(34,197,94,0.12);
+      color: var(--green);
+      border: 1px solid rgba(34,197,94,0.25);
+      transition: all 0.3s;
+    }
+
+    .status-pill.offline {
+      background: rgba(107,112,128,0.12);
+      color: var(--muted);
+      border-color: rgba(107,112,128,0.25);
+    }
+
+    .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .dot.pulse {
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    /* ── Temperaturas ── */
+    .temps {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .temp-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 16px;
+      text-align: center;
+    }
+
+    .temp-card.agua {
+      border-color: rgba(249,115,22,0.35);
+      background: rgba(249,115,22,0.06);
+    }
+
+    .temp-icon {
+      font-size: 22px;
+      margin-bottom: 6px;
+    }
+
+    .temp-label {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 8px;
+    }
+
+    .temp-value {
+      font-family: var(--mono);
+      font-size: 28px;
+      font-weight: 500;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .temp-card.agua .temp-value {
+      color: var(--accent);
+    }
+
+    .temp-unit {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    /* ── Estado ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+      padding: 14px 18px 10px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .estado-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 13px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .estado-row:last-child { border-bottom: none; }
+
+    .estado-label {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 13px;
+      font-weight: 500;
+      padding: 4px 10px;
+      border-radius: 99px;
+    }
+
+    .badge.on  { background: rgba(34,197,94,0.12);  color: var(--green); }
+    .badge.off { background: rgba(107,112,128,0.12); color: var(--muted); }
+    .badge.go  { background: rgba(249,115,22,0.12);  color: var(--accent); }
+    .badge.err { background: rgba(239,68,68,0.12);   color: var(--red); }
+
+    /* ── Botones ── */
+    .botones {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 18px;
+      border: none;
+      border-radius: var(--radius);
+      font-family: var(--font);
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.2px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: opacity 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .btn:active { transform: scale(0.97); opacity: 0.85; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn:disabled:active { transform: none; }
+
+    .btn-go {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-stop {
+      background: transparent;
+      color: var(--red);
+      border: 1.5px solid var(--red);
+    }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: var(--muted);
+      padding: 4px 0;
+    }
+
+    .footer span {
+      font-family: var(--mono);
+      font-size: 12px;
+    }
+
+    /* ── Sensor error banner ── */
+    .error-banner {
+      display: none;
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--red);
+      text-align: center;
+    }
+
+    .error-banner.visible { display: block; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div>
+      <div class="header-title">Sistema de Calefacción</div>
+      <div class="header-sub">Control remoto</div>
+    </div>
+    <div class="status-pill offline" id="statusPill">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">Conectando</span>
+    </div>
+  </div>
+
+  <!-- Error sensor -->
+  <div class="error-banner" id="errorBanner">
+    ⚠️ Error en sensor de temperatura
+  </div>
+
+  <!-- Temperaturas -->
+  <div class="temps">
+    <div class="temp-card">
+      <div class="temp-icon">🌡</div>
+      <div class="temp-label">Ambiente</div>
+      <div class="temp-value" id="tempAmbiente">--<span class="temp-unit"> °C</span></div>
+    </div>
+    <div class="temp-card agua">
+      <div class="temp-icon">🔥</div>
+      <div class="temp-label">Agua</div>
+      <div class="temp-value" id="tempAgua">--<span class="temp-unit"> °C</span></div>
+    </div>
+  </div>
+
+  <!-- Estado del sistema -->
+  <div class="card">
+    <div class="card-title">Estado del sistema</div>
+    <div class="estado-row">
+      <span class="estado-label">Calefactor</span>
+      <span class="badge off" id="badgeSSR">● Apagado</span>
+    </div>
+    <div class="estado-row">
+      <span class="estado-label">Bomba</span>
+      <span class="badge off" id="badgeBomba">● Apagada</span>
+    </div>
+    <div class="estado-row">
+      <span class="estado-label">Modo</span>
+      <span class="badge off" id="badgeModo">— En espera</span>
+    </div>
+  </div>
+
+  <!-- Botones -->
+  <div class="botones">
+    <button class="btn btn-go" id="btnGoHome">🏠 VOY A CASA</button>
+    <button class="btn btn-stop" id="btnDetener">⛔ DETENER</button>
+  </div>
+
+  <!-- Última actualización -->
+  <div class="footer">
+    Última actualización &nbsp;<span id="ultimaAct">--:--:--</span>
+  </div>
+
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp }              from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+  // ── Configuración Firebase ──────────────────────────────
+  const firebaseConfig = {
+    apiKey:      "AIzaSyCQuPl1iSec77AW3nLFygB7YfQYb9T2eUA",
+    databaseURL: "https://esp32systemheating-default-rtdb.firebaseio.com",
+    projectId:   "esp32systemheating",
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db  = getDatabase(app);
+
+  // ── Referencias ─────────────────────────────────────────
+  const estadoRef  = ref(db, "/estado");
+  const controlRef = ref(db, "/control");
+
+  // ── UI helpers ──────────────────────────────────────────
+  const $ = id => document.getElementById(id);
+
+  function setBadge(el, on, labelOn, labelOff, tipo) {
+    el.className = "badge " + (on ? (tipo || "on") : "off");
+    el.textContent = on ? ("● " + labelOn) : ("● " + labelOff);
+  }
+
+  function setOnline(online) {
+    const pill = $("statusPill");
+    const dot  = $("statusDot");
+    const txt  = $("statusText");
+    if (online) {
+      pill.className = "status-pill";
+      dot.className  = "dot pulse";
+      txt.textContent = "En línea";
+    } else {
+      pill.className = "status-pill offline";
+      dot.className  = "dot";
+      txt.textContent = "Sin datos";
+    }
+  }
+
+  function horaActual() {
+    return new Date().toLocaleTimeString("es-PE", { hour12: false });
+  }
+
+  // ── Escucha cambios en /estado ───────────────────────────
+  let ultimoDato = 0;
+
+  onValue(estadoRef, snap => {
+    const d = snap.val();
+    if (!d) return;
+
+    ultimoDato = Date.now();
+    setOnline(true);
+
+    // Temperaturas
+    $("tempAgua").innerHTML     = (d.tempAgua     ?? "--") + '<span class="temp-unit"> °C</span>';
+    $("tempAmbiente").innerHTML = (d.tempAmbiente  ?? "--") + '<span class="temp-unit"> °C</span>';
+
+    // Badges
+    setBadge($("badgeSSR"),   d.ssr,           "Encendido",  "Apagado");
+    setBadge($("badgeBomba"), d.bomba,         "Encendida",  "Apagada");
+    setBadge($("badgeModo"),  d.goHomeActivo,  "Go Home",    "En espera", "go");
+
+    // Error sensor
+    $("errorBanner").classList.toggle("visible", !!d.sensorError);
+
+    // Botones — deshabilitamos Go Home si ya está activo
+    $("btnGoHome").disabled  = !!d.goHomeActivo;
+    $("btnDetener").disabled = !d.goHomeActivo;
+
+    // Hora
+    $("ultimaAct").textContent = horaActual();
+  });
+
+  // Detectar si el ESP32 dejó de enviar datos (más de 15 seg sin actualizar)
+  setInterval(() => {
+    if (Date.now() - ultimoDato > 15000) setOnline(false);
+  }, 5000);
+
+  // ── Botón Go Home ────────────────────────────────────────
+  $("btnGoHome").addEventListener("click", () => {
+    update(controlRef, { goHome: true });
+  });
+
+  // ── Botón Detener ────────────────────────────────────────
+  $("btnDetener").addEventListener("click", () => {
+    update(controlRef, { cancelar: true });
+  });
+</script>
+</body>
+</html>
